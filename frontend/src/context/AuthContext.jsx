@@ -56,6 +56,139 @@
 // }
 
 
+// import {
+//   createContext,
+//   useContext,
+//   useState,
+//   useEffect
+// } from "react";
+
+// const AuthContext = createContext(null);
+
+// const API_URL = import.meta.env.VITE_API_URL ||
+//   "http://localhost:8000";
+
+// export function AuthProvider({ children }) {
+
+//   const [user, setUser] = useState(null);
+//   const [isLoading, setIsLoading] = useState(true);
+
+//   // VERIFICAR SI EXISTE UNA SESION
+//   useEffect(() => {
+
+//     let active = true;
+
+//     const checkSession = async () => {
+
+//       try {
+
+//         const response = await fetch(
+//           `${API_URL}/api/v1/auth/me`,
+//           {
+//             method: "GET",
+//             credentials: "include"
+//           }
+//         );
+
+//         if (!response.ok) {
+//           if (active) setUser(null);
+//           return;
+//         }
+
+//         const data = await response.json();
+
+//         if (active) {
+//           setUser(data.user);
+//         }
+
+//       } catch (error) {
+
+//         console.error("Error verificando sesion:", error);
+
+//         if (active) setUser(null);
+
+//       } finally {
+
+//         if (active) setIsLoading(false);
+
+//       }
+//     };
+
+//     checkSession();
+
+//     return () => {
+//       active = false;
+//     };
+
+//   }, []);
+
+//   // LOGIN CON GOOGLE
+//   const loginWithGoogle = async (googleToken) => {
+
+//     const response = await fetch(
+//       `${API_URL}/api/v1/auth/google`,
+//       {
+//         method: "POST",
+//         credentials: "include",
+//         headers: {
+//           "Content-Type": "application/json"
+//         },
+//         body: JSON.stringify({
+//           id_token: googleToken
+//         })
+//       }
+//     );
+
+//     const data = await response.json();
+
+//     if (!response.ok) {
+//       throw new Error(
+//         data.detail || "No se pudo iniciar sesion"
+//       );
+//     }
+
+//     setUser(data.user);
+
+//     return data.user;
+//   };
+
+//   // LOGOUT
+//   const logout = async () => {
+
+//     const response = await fetch(
+//       `${API_URL}/api/v1/auth/logout`,
+//       {
+//         method: "POST",
+//         credentials: "include"
+//       }
+//     );
+
+//     if (!response.ok) {
+//       throw new Error("No se pudo cerrar la sesion");
+//     }
+
+//     setUser(null);
+//   };
+
+//   return (
+//     <AuthContext.Provider
+//       value={{
+//         user,
+//         isAuthenticated: Boolean(user),
+//         isLoading,
+//         loginWithGoogle,
+//         logout
+//       }}
+//     >
+//       {children}
+//     </AuthContext.Provider>
+//   );
+// }
+
+// export function useAuth() {
+//   return useContext(AuthContext);
+// }
+
 import {
   createContext,
   useContext,
@@ -65,30 +198,22 @@ import {
 
 const AuthContext = createContext(null);
 
-const API_URL = import.meta.env.VITE_API_URL ||
-  "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export function AuthProvider({ children }) {
-
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // VERIFICAR SI EXISTE UNA SESION
   useEffect(() => {
-
     let active = true;
 
     const checkSession = async () => {
-
       try {
-
-        const response = await fetch(
-          `${API_URL}/api/v1/auth/me`,
-          {
-            method: "GET",
-            credentials: "include"
-          }
-        );
+        const response = await fetch(`${API_URL}/api/v1/auth/me`, {
+          method: "GET",
+          credentials: "include"
+        });
 
         if (!response.ok) {
           if (active) setUser(null);
@@ -96,21 +221,14 @@ export function AuthProvider({ children }) {
         }
 
         const data = await response.json();
-
         if (active) {
           setUser(data.user);
         }
-
       } catch (error) {
-
         console.error("Error verificando sesion:", error);
-
         if (active) setUser(null);
-
       } finally {
-
         if (active) setIsLoading(false);
-
       }
     };
 
@@ -119,54 +237,46 @@ export function AuthProvider({ children }) {
     return () => {
       active = false;
     };
-
   }, []);
 
-  // LOGIN CON GOOGLE
-  const loginWithGoogle = async (googleToken) => {
-
-    const response = await fetch(
-      `${API_URL}/api/v1/auth/google`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          id_token: googleToken
-        })
-      }
-    );
+  // LOGIN CON GOOGLE (Actualizado a access_token)
+  const loginWithGoogle = async (googleAccessToken) => {
+    const response = await fetch(`${API_URL}/api/v1/auth/google`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        access_token: googleAccessToken // <-- Coincide con GoogleLoginRequest en auth.py
+      })
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(
-        data.detail || "No se pudo iniciar sesion"
-      );
+      const errorMsg = typeof data.detail === "string"
+        ? data.detail
+        : JSON.stringify(data.detail);
+      throw new Error(errorMsg || "No se pudo iniciar sesion");
     }
 
     setUser(data.user);
-
     return data.user;
   };
 
   // LOGOUT
   const logout = async () => {
-
-    const response = await fetch(
-      `${API_URL}/api/v1/auth/logout`,
-      {
-        method: "POST",
-        credentials: "include"
-      }
-    );
+    const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
+      method: "POST",
+      credentials: "include"
+    });
 
     if (!response.ok) {
       throw new Error("No se pudo cerrar la sesion");
     }
 
+    localStorage.removeItem("google_access_token"); // Limpia el token temporal de Gmail
     setUser(null);
   };
 
